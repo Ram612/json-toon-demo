@@ -1,85 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>JSON vs TOON Token Comparison</title>
-<script type="module">
+<meta charset="UTF-8" />
+<title>JSON vs TOON Comparison Tool</title>
 
-// Import TOON Encoder
-import { encodeTOON } from "https://cdn.jsdelivr.net/npm/@toon-format/toon/+esm";
+<style>
+  body { font-family: Arial, sans-serif; padding: 30px; max-width: 900px; margin: auto; }
+  textarea { width: 100%; height: 180px; padding: 10px; margin-top: 10px; }
+  .card { padding: 20px; margin-top: 20px; border: 1px solid #ddd; border-radius: 6px; }
+  button { padding: 10px 24px; margin-top: 10px; cursor: pointer; }
+</style>
 
-// Import TikToken WASM
-import init, { get_encoding } from "https://cdn.jsdelivr.net/npm/tiktoken-wasm/dist/tiktoken_wasm.js";
-
-let encoder;
-
-// Initialize TikToken WASM
-(async () => {
-  await init();
-  encoder = get_encoding("cl100k_base");
-})();
-
-// Count tokens
-function countTokens(text) {
-  if (!encoder) return 0;
-  return encoder.encode(text).length;
+<script>
+// --- SIMPLE TOKEN APPROX (browser-safe, no WASM needed) ---
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.split(/\s+/).length * 1.3); // ~OpenAI tokenization
 }
 
-// Convert JSON → TOON
-function toTOON(json) {
+// --- JSON → TOON (simple implementation for demo) ---
+function convertToTOON(jsonStr) {
   try {
-    const obj = JSON.parse(json);
-    return encodeTOON(obj);
+    const obj = JSON.parse(jsonStr);
+
+    // Expecting { products: [ {...}, {...} ] }
+    if (!obj.products || !Array.isArray(obj.products)) {
+      return "Invalid format: expected { products: [...] }";
+    }
+
+    const keys = Object.keys(obj.products[0]);
+    let toon = `products[${obj.products.length}]{${keys.join(",")}}:\n`;
+
+    obj.products.forEach(item => {
+      const row = keys.map(k => item[k]).join(",");
+      toon += `  ${row}\n`;
+    });
+
+    return toon.trim();
   } catch {
     return "Invalid JSON";
   }
 }
 
-// Main calculation
-window.calculate = () => {
+// --- MAIN CALC ---
+function calculate() {
   const jsonInput = document.getElementById("jsonInput").value.trim();
   if (!jsonInput) return;
 
-  const toonOutput = toTOON(jsonInput);
+  const toon = convertToTOON(jsonInput);
 
-  const jsonTokens = countTokens(jsonInput);
-  const toonTokens = countTokens(toonOutput);
+  const jsonTokens = estimateTokens(jsonInput);
+  const toonTokens = estimateTokens(toon);
 
   const savings = jsonTokens - toonTokens;
   const percent = ((savings / jsonTokens) * 100).toFixed(1);
 
   document.getElementById("jsonTokens").innerText = jsonTokens;
   document.getElementById("toonTokens").innerText = toonTokens;
-  document.getElementById("savings").innerText = `${savings} tokens (${percent}% reduction)`;
-  document.getElementById("toonOutput").value = toonOutput;
-};
+  document.getElementById("savings").innerText =
+    `${savings} tokens (${percent}% reduction)`;
 
+  document.getElementById("toonOutput").value = toon;
+}
 </script>
 
-<style>
-body {
-  font-family: Arial, sans-serif;
-  padding: 40px;
-  max-width: 900px;
-  margin: auto;
-}
-textarea {
-  width: 100%;
-  height: 160px;
-  padding: 10px;
-  margin-top: 10px;
-}
-.card {
-  padding: 20px;
-  margin-top: 20px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-button {
-  margin-top: 10px;
-  padding: 10px 20px;
-}
-</style>
 </head>
 <body>
 
@@ -87,14 +71,13 @@ button {
 
 <div class="card">
   <h3>JSON Input</h3>
-  <textarea id="jsonInput">
-{
+  <textarea id="jsonInput">{
   "products": [
-    { "id": "301", "name": "Wireless Mouse", "price": 29.99 },
-    { "id": "302", "name": "Mechanical Keyboard", "price": 79.99 }
+    { "id": "301", "name": "Wireless Mouse", "price": 29.99, "category": "Electronics" },
+    { "id": "302", "name": "Mechanical Keyboard", "price": 79.99, "category": "Electronics" },
+    { "id": "303", "name": "4K Monitor", "price": 299.99, "category": "Electronics" }
   ]
-}
-  </textarea>
+}</textarea>
   <button onclick="calculate()">Calculate</button>
 </div>
 
