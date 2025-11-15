@@ -1,97 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>JSON vs TOON Comparison Tool</title>
+  <meta charset="UTF-8" />
+  <title>JSON vs TOON Comparison Tool</title>
 
-<style>
-  body { font-family: Arial, sans-serif; padding: 30px; max-width: 900px; margin: auto; }
-  textarea { width: 100%; height: 180px; padding: 10px; margin-top: 10px; }
-  .card { padding: 20px; margin-top: 20px; border: 1px solid #ddd; border-radius: 6px; }
-  button { padding: 10px 24px; margin-top: 10px; cursor: pointer; }
-</style>
+  <!-- Bootstrap -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <style>
+    body {
+      padding: 30px;
+      max-width: 900px;
+      margin: auto;
+    }
+    textarea {
+      height: 180px;
+    }
+    pre {
+      white-space: pre-wrap;
+    }
+  </style>
 
 </head>
 <body>
 
-<h1>JSON vs TOON Token Comparison Tool</h1>
+  <h1 class="mb-4 text-primary">JSON vs TOON Token Comparison Tool</h1>
 
-<div class="card">
-  <h3>JSON Input</h3>
-  <textarea id="jsonInput">{
+  <!-- JSON INPUT -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <h4 class="card-title">JSON Input</h4>
+
+      <textarea id="jsonInput" class="form-control mt-2">{
   "products": [
     { "id": "301", "name": "Wireless Mouse", "price": 29.99, "category": "Electronics" },
     { "id": "302", "name": "Mechanical Keyboard", "price": 79.99, "category": "Electronics" },
     { "id": "303", "name": "4K Monitor", "price": 299.99, "category": "Electronics" }
   ]
 }</textarea>
-  <button onclick="calculate()">Calculate</button>
-</div>
 
-<div class="card">
-  <h3>Results</h3>
-  <p><strong>JSON Tokens:</strong> <span id="jsonTokens">-</span></p>
-  <p><strong>TOON Tokens:</strong> <span id="toonTokens">-</span></p>
-  <p><strong>Token Savings:</strong> <span id="savings">-</span></p>
-</div>
+      <button class="btn btn-primary mt-3" onclick="calculate()">Calculate</button>
+    </div>
+  </div>
 
-<div class="card">
-  <h3>TOON Output</h3>
-  <textarea id="toonOutput" readonly></textarea>
-</div>
+  <!-- RESULTS -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <h4 class="card-title">Results</h4>
 
+      <p><strong>JSON Tokens:</strong> <span id="jsonTokens">-</span></p>
+      <p><strong>TOON Tokens:</strong> <span id="toonTokens">-</span></p>
+      <p><strong>Token Savings:</strong> <span id="savings">-</span></p>
+    </div>
+  </div>
+
+  <!-- TOON OUTPUT -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h4 class="card-title">TOON Output</h4>
+
+      <textarea id="toonOutput" class="form-control" readonly></textarea>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
   <script>
-// --- SIMPLE TOKEN APPROX (browser-safe, no WASM needed) ---
-function estimateTokens(text) {
-  if (!text) return 0;
-  return Math.ceil(text.split(/\s+/).length * 1.3); // ~OpenAI tokenization
-}
-
-// --- JSON → TOON (simple implementation for demo) ---
-function convertToTOON(jsonStr) {
-  try {
-    const obj = JSON.parse(jsonStr);
-
-    // Expecting { products: [ {...}, {...} ] }
-    if (!obj.products || !Array.isArray(obj.products)) {
-      return "Invalid format: expected { products: [...] }";
+    function estimateTokens(text) {
+      if (!text) return 0;
+      return Math.ceil(text.split(/\s+/).length * 1.3);
     }
 
-    const keys = Object.keys(obj.products[0]);
-    let toon = `products[${obj.products.length}]{${keys.join(",")}}:\n`;
+    function convertToTOON(jsonStr) {
+      try {
+        const obj = JSON.parse(jsonStr);
 
-    obj.products.forEach(item => {
-      const row = keys.map(k => item[k]).join(",");
-      toon += `  ${row}\n`;
-    });
+        if (!obj.products || !Array.isArray(obj.products)) {
+          return "Invalid format: expected { products: [...] }";
+        }
 
-    return toon.trim();
-  } catch {
-    return "Invalid JSON";
-  }
-}
+        const keys = Object.keys(obj.products[0]);
+        let toon = `products[${obj.products.length}]{${keys.join(",")}}:\n`;
 
-// --- MAIN CALC ---
-function calculate() {
-  const jsonInput = document.getElementById("jsonInput").value.trim();
-  if (!jsonInput) return;
+        obj.products.forEach(item => {
+          const row = keys.map(k => item[k]).join(",");
+          toon += `  ${row}\n`;
+        });
 
-  const toon = convertToTOON(jsonInput);
+        return toon.trim();
+      } catch {
+        return "Invalid JSON";
+      }
+    }
 
-  const jsonTokens = estimateTokens(jsonInput);
-  const toonTokens = estimateTokens(toon);
+    function calculate() {
+      const jsonInput = document.getElementById("jsonInput").value.trim();
+      if (!jsonInput) return;
 
-  const savings = jsonTokens - toonTokens;
-  const percent = ((savings / jsonTokens) * 100).toFixed(1);
+      const toon = convertToTOON(jsonInput);
 
-  document.getElementById("jsonTokens").innerText = jsonTokens;
-  document.getElementById("toonTokens").innerText = toonTokens;
-  document.getElementById("savings").innerText =
-    `${savings} tokens (${percent}% reduction)`;
+      const jsonTokens = estimateTokens(jsonInput);
+      const toonTokens = estimateTokens(toon);
 
-  document.getElementById("toonOutput").value = toon;
-}
-</script>
+      const savings = jsonTokens - toonTokens;
+      const percent = ((savings / jsonTokens) * 100).toFixed(1);
+
+      document.getElementById("jsonTokens").innerText = jsonTokens;
+      document.getElementById("toonTokens").innerText = toonTokens;
+      document.getElementById("savings").innerText =
+        `${savings} tokens (${percent}% reduction)`;
+
+      document.getElementById("toonOutput").value = toon;
+    }
+  </script>
 
 </body>
 </html>
