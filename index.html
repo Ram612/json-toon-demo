@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JSON vs TOON Token Comparison</title>
+<script type="module">
+
+// Import TOON Encoder
+import { encodeTOON } from "https://cdn.jsdelivr.net/npm/@toon-format/toon/+esm";
+
+// Import TikToken WASM
+import init, { get_encoding } from "https://cdn.jsdelivr.net/npm/tiktoken-wasm/dist/tiktoken_wasm.js";
+
+let encoder;
+
+// Initialize TikToken WASM
+(async () => {
+  await init();
+  encoder = get_encoding("cl100k_base");
+})();
+
+// Count tokens
+function countTokens(text) {
+  if (!encoder) return 0;
+  return encoder.encode(text).length;
+}
+
+// Convert JSON → TOON
+function toTOON(json) {
+  try {
+    const obj = JSON.parse(json);
+    return encodeTOON(obj);
+  } catch {
+    return "Invalid JSON";
+  }
+}
+
+// Main calculation
+window.calculate = () => {
+  const jsonInput = document.getElementById("jsonInput").value.trim();
+  if (!jsonInput) return;
+
+  const toonOutput = toTOON(jsonInput);
+
+  const jsonTokens = countTokens(jsonInput);
+  const toonTokens = countTokens(toonOutput);
+
+  const savings = jsonTokens - toonTokens;
+  const percent = ((savings / jsonTokens) * 100).toFixed(1);
+
+  document.getElementById("jsonTokens").innerText = jsonTokens;
+  document.getElementById("toonTokens").innerText = toonTokens;
+  document.getElementById("savings").innerText = `${savings} tokens (${percent}% reduction)`;
+  document.getElementById("toonOutput").value = toonOutput;
+};
+
+</script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  padding: 40px;
+  max-width: 900px;
+  margin: auto;
+}
+textarea {
+  width: 100%;
+  height: 160px;
+  padding: 10px;
+  margin-top: 10px;
+}
+.card {
+  padding: 20px;
+  margin-top: 20px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+button {
+  margin-top: 10px;
+  padding: 10px 20px;
+}
+</style>
+</head>
+<body>
+
+<h1>JSON vs TOON Token Comparison Tool</h1>
+
+<div class="card">
+  <h3>JSON Input</h3>
+  <textarea id="jsonInput">
+{
+  "products": [
+    { "id": "301", "name": "Wireless Mouse", "price": 29.99 },
+    { "id": "302", "name": "Mechanical Keyboard", "price": 79.99 }
+  ]
+}
+  </textarea>
+  <button onclick="calculate()">Calculate</button>
+</div>
+
+<div class="card">
+  <h3>Results</h3>
+  <p><strong>JSON Tokens:</strong> <span id="jsonTokens">-</span></p>
+  <p><strong>TOON Tokens:</strong> <span id="toonTokens">-</span></p>
+  <p><strong>Token Savings:</strong> <span id="savings">-</span></p>
+</div>
+
+<div class="card">
+  <h3>TOON Output</h3>
+  <textarea id="toonOutput" readonly></textarea>
+</div>
+
+</body>
+</html>
