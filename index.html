@@ -1,120 +1,744 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>JSON vs TOON Comparison Tool</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>JSON ↔ TOON — Demo & Converter</title>
 
-  <!-- Bootstrap -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Prism for syntax highlighting -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+  <link id="prism-dark" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" disabled />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --accent: #0ea5e9;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1220;
+      --card: #0f1724;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+
+    html, body { height: 100%; }
     body {
-      padding: 30px;
-      max-width: 900px;
-      margin: auto;
+      background: linear-gradient(180deg,var(--bg), #eef2ff 60%);
+      transition: background 300ms ease, color 300ms ease;
     }
-    textarea {
-      height: 180px;
+
+    .card {
+      background: var(--card);
+      box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+      border-radius: 12px;
+      padding: 18px;
+      transition: background 300ms ease, color 300ms ease;
     }
+
     pre {
-      white-space: pre-wrap;
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
     }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace; }
+
+    /* small nice toggle animation */
+    .toggle-bg { transition: background-color 250ms ease; }
+    .fade { transition: all 250ms ease; }
+
+    /* responsive code blocks */
+    .code-block { max-height: 420px; overflow:auto; }
   </style>
-
 </head>
-<body>
+<body class="min-h-screen p-4" data-theme="light">
 
-  <h1 class="mb-4 text-primary">JSON vs TOON Token Comparison Tool</h1>
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <header class="mb-6 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold">JSON ↔ TOON — Demo</h1>
+        <p class="text-sm text-gray-500 mt-1">Convert, compare, and experiment with AI-native TOON format. Built for demos & LinkedIn share.</p>
+      </div>
 
-  <!-- JSON INPUT -->
-  <div class="card mb-4 shadow-sm">
-    <div class="card-body">
-      <h4 class="card-title">JSON Input</h4>
+      <div class="flex items-center gap-3">
+        <button id="themeBtn" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm fade">🌗 Toggle Theme</button>
+        <a href="https://github.com/toon-format/toon" target="_blank" rel="noopener" class="text-sm px-3 py-2 rounded-lg bg-blue-600 text-white hover:opacity-95">TOON Repo</a>
+      </div>
+    </header>
 
-      <textarea id="jsonInput" class="form-control mt-2">{
+    <!-- Controls + Samples -->
+    <section class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="card col-span-2">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h2 class="text-lg font-semibold">Input (JSON / CSV / TOON)</h2>
+            <p class="text-sm text-muted mt-1">Paste JSON, upload a file or load a sample. TOON reverse parser works for TOONs generated here.</p>
+          </div>
+          <div class="flex gap-2">
+            <input id="fileInput" type="file" accept=".json,.csv,.toon,.txt" class="hidden" />
+            <button class="px-3 py-2 btn bg-slate-100 rounded-lg" onclick="document.getElementById('fileInput').click()">📁 Upload</button>
+            <button class="px-3 py-2 btn bg-emerald-500 text-white rounded-lg" onclick="convertHandler()">Convert →</button>
+          </div>
+        </div>
+
+        <textarea id="inputArea" class="w-full h-52 p-3 rounded-md mono text-sm border border-slate-200"
+                  placeholder='Paste JSON here — or click "Load sample" below.'></textarea>
+
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="px-3 py-1 rounded-md bg-slate-50 text-sm" onclick="loadSample('flat')">Load: Products (flat)</button>
+          <button class="px-3 py-1 rounded-md bg-slate-50 text-sm" onclick="loadSample('nested')">Load: Store (nested)</button>
+          <button class="px-3 py-1 rounded-md bg-slate-50 text-sm" onclick="loadSample('csv')">Load: CSV Example</button>
+          <button class="px-3 py-1 rounded-md bg-slate-50 text-sm" onclick="loadSample('toon')">Load: TOON Example</button>
+          <button class="px-3 py-1 rounded-md bg-slate-50 text-sm" onclick="clearAll()">Clear</button>
+        </div>
+      </div>
+
+      <aside class="card">
+        <h3 class="font-semibold">Quick actions</h3>
+        <div class="mt-3 flex flex-col gap-2">
+          <button id="jsonToTOON" class="px-3 py-2 rounded-md bg-sky-500 text-white" onclick="convertToTOON()">JSON → TOON</button>
+          <button id="toonToJSON" class="px-3 py-2 rounded-md bg-amber-500 text-white" onclick="convertToJSON()">TOON → JSON</button>
+          <button class="px-3 py-2 rounded-md bg-gray-100" onclick="copyInput()">Copy Input</button>
+          <button class="px-3 py-2 rounded-md bg-gray-100" onclick="copyOutput()">Copy Output</button>
+        </div>
+
+        <div class="mt-5">
+          <h4 class="text-sm font-medium text-gray-600">Download</h4>
+          <div class="mt-2 flex gap-2">
+            <button class="px-3 py-2 rounded-md bg-green-600 text-white" onclick="downloadOutput('json')">Download JSON</button>
+            <button class="px-3 py-2 rounded-md bg-green-600 text-white" onclick="downloadOutput('toon')">Download TOON</button>
+          </div>
+        </div>
+
+        <div class="mt-5">
+          <h4 class="text-sm font-medium text-gray-600">Size comparison</h4>
+          <canvas id="sizeChart" height="160"></canvas>
+          <p id="sizeText" class="text-sm mt-2 text-gray-500"></p>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Output panels -->
+    <section class="grid md:grid-cols-2 gap-4 mb-8">
+      <div class="card code-block">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Output (TOON)</h3>
+          <div class="flex gap-2">
+            <button class="px-2 py-1 text-sm bg-slate-100 rounded-md" onclick="copyOutput()">Copy</button>
+            <button class="px-2 py-1 text-sm bg-slate-100 rounded-md" onclick="downloadOutput('toon')">Download</button>
+          </div>
+        </div>
+        <pre class="language-markup"><code id="toonOut" class="language-markup mono"></code></pre>
+      </div>
+
+      <div class="card code-block">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Output (JSON)</h3>
+          <div class="flex gap-2">
+            <button class="px-2 py-1 text-sm bg-slate-100 rounded-md" onclick="copyJsonOut()">Copy</button>
+            <button class="px-2 py-1 text-sm bg-slate-100 rounded-md" onclick="downloadOutput('json')">Download</button>
+          </div>
+        </div>
+        <pre class="language-json"><code id="jsonOut" class="language-json mono"></code></pre>
+      </div>
+    </section>
+
+    <!-- Notes / Footer -->
+    <footer class="card">
+      <h4 class="font-semibold">Notes & Tips</h4>
+      <ul class="list-disc pl-5 mt-2 text-sm text-gray-600">
+        <li>TOON here is a compact, ordered representation we use for demos — it keeps schema + values compact for LLM inputs.</li>
+        <li>For very deep/irregular nesting, try splitting large objects into blocks (use sample loader to experiment).</li>
+        <li>This page compares raw byte sizes (client-side). If you want tokenized costs, we can add tokenizer libs later.</li>
+      </ul>
+    </footer>
+
+    <div class="text-center mt-6 text-sm text-gray-500">Made for demos • Share on LinkedIn • <span id="buildInfo"></span></div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+  /*************** Utility helpers ***************/
+  function isTOONText(text) {
+    return /^\s*[a-zA-Z0-9_]+\s*[\(\[]/m.test(text);
+  }
+
+  function safeParseJSON(text) {
+    try { return JSON.parse(text); } catch (e) { return null; }
+  }
+
+  /* Copy helpers */
+  async function copyText(t) {
+    try {
+      await navigator.clipboard.writeText(t);
+      toast('Copied to clipboard');
+    } catch (e) {
+      alert('Copy failed — your browser may block clipboard access.');
+    }
+  }
+
+  function toast(msg) {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.className = 'fixed bottom-6 right-6 bg-black text-white px-4 py-2 rounded-md';
+    document.body.appendChild(el);
+    setTimeout(()=> el.remove(), 1800);
+  }
+
+  /*************** Sample data ***************/
+  const SAMPLES = {
+    flat: `{
   "products": [
     { "id": "301", "name": "Wireless Mouse", "price": 29.99, "category": "Electronics" },
     { "id": "302", "name": "Mechanical Keyboard", "price": 79.99, "category": "Electronics" },
     { "id": "303", "name": "4K Monitor", "price": 299.99, "category": "Electronics" }
   ]
-}</textarea>
+}`,
+    nested: `{
+  "store": {
+    "id": "ST-909",
+    "name": "Alpha Electronics",
+    "location": {
+      "country": "India",
+      "state": "Tamil Nadu",
+      "city": "Chennai",
+      "pincode": "600001"
+    },
+    "products": [
+      {
+        "id": "P101",
+        "name": "Smart TV",
+        "price": 44999,
+        "specs": {
+          "screen_size": "55 inch",
+          "resolution": "4K",
+          "os": "Android TV"
+        },
+        "reviews": [
+          { "user": "Ram", "rating": 4.8, "comment": "Excellent clarity!" },
+          { "user": "Kumar", "rating": 4.5, "comment": "Great value" }
+        ]
+      },
+      {
+        "id": "P102",
+        "name": "Laptop",
+        "price": 69999,
+        "specs": {
+          "ram": "16GB",
+          "storage": "512GB SSD",
+          "processor": "Intel i7"
+        },
+        "reviews": [
+          { "user": "Arun", "rating": 4.7, "comment": "Super fast performance" }
+        ]
+      }
+    ]
+  }
+}`,
+    csv: `id,name,price,category
+301,Wireless Mouse,29.99,Electronics
+302,Mechanical Keyboard,79.99,Electronics
+303,4K Monitor,299.99,Electronics`,
+    toon: `products[3]{id,name,price,category}:
+301,Wireless Mouse,29.99,Electronics
+302,Mechanical Keyboard,79.99,Electronics
+303,4K Monitor,299.99,Electronics`
+  };
 
-      <button class="btn btn-primary mt-3" onclick="calculate()">Calculate</button>
-    </div>
-  </div>
+  function loadSample(key) {
+    document.getElementById('inputArea').value = SAMPLES[key] || '';
+  }
 
-  <!-- RESULTS -->
-  <div class="card mb-4 shadow-sm">
-    <div class="card-body">
-      <h4 class="card-title">Results</h4>
+  function clearAll() {
+    document.getElementById('inputArea').value = '';
+    document.getElementById('toonOut').textContent = '';
+    document.getElementById('jsonOut').textContent = '';
+    updateChart(0,0);
+  }
 
-      <p><strong>JSON Tokens:</strong> <span id="jsonTokens">-</span></p>
-      <p><strong>TOON Tokens:</strong> <span id="toonTokens">-</span></p>
-      <p><strong>Token Savings:</strong> <span id="savings">-</span></p>
-    </div>
-  </div>
+  // file upload
+  document.getElementById('fileInput').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      document.getElementById('inputArea').value = ev.target.result;
+    };
+    reader.readAsText(file);
+  });
 
-  <!-- TOON OUTPUT -->
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <h4 class="card-title">TOON Output</h4>
+  /*************** Conversion: JSON -> TOON (recursive) ***************/
+  function jsonToToon(obj, nameHint) {
+    // For arrays at the root with a name, produce compact toon blocks.
+    if (Array.isArray(obj)) {
+      // If array of simple objects with same keys, use compact table format
+      if (obj.length > 0 && obj.every(it => typeof it === 'object' && !Array.isArray(it))) {
+        const fields = Object.keys(obj[0]);
+        const header = `${nameHint || 'root'}[${obj.length}]{${fields.join(',')}}:`;
+        const rows = obj.map(it => fields.map(f => escapeValue(it[f])).join(',')).join('\n');
+        return header + '\n' + rows;
+      } else {
+        // fallback: list of items
+        return `${nameHint || 'array'}[${obj.length}][\n${obj.map((i,idx)=>'  '+jsonToToon(i, idx)).join(',\n')}\n]`;
+      }
+    } else if (obj && typeof obj === 'object') {
+      // object: print as name(args...) or name[keys]
+      const entries = Object.entries(obj);
+      // Check if this object is a block with arrays inside -> produce named block
+      let parts = [];
+      for (const [k, v] of entries) {
+        if (Array.isArray(v)) {
+          // if array of objects with same shape, produce nested compact block
+          if (v.length > 0 && v.every(it => typeof it === 'object' && !Array.isArray(it))) {
+            const fields = Object.keys(v[0]);
+            const header = `${k}[${v.length}]{${fields.join(',')}}:\n${v.map(it=>fields.map(f=>escapeValue(it[f])).join(',')).join('\n')}`;
+            parts.push(header);
+          } else {
+            parts.push(`${k}[${v.length}][\n${v.map((x,i)=>'    '+jsonToToon(x,i)).join(',\n')}\n  ]`);
+          }
+        } else if (v && typeof v === 'object') {
+          parts.push(`${k}(${jsonObjectInline(v)})`);
+        } else {
+          // primitive
+          parts.push(`${k}(${escapeValue(v)})`);
+        }
+      }
+      // If simple top-level object with nameHint, produce name(...parts...)
+      if (nameHint) {
+        return `${nameHint}(\n  ${parts.join(',\n  ')}\n)`;
+      } else {
+        return `{\n  ${parts.join(',\n  ')}\n}`;
+      }
+    } else {
+      return escapeValue(obj);
+    }
+  }
 
-      <textarea id="toonOutput" class="form-control" readonly></textarea>
-    </div>
-  </div>
+  function jsonObjectInline(obj) {
+    // produce comma separated inline values for small nested objects
+    const vals = Object.values(obj).map(v => {
+      if (v && typeof v === 'object') return JSON.stringify(v);
+      return escapeValue(v);
+    });
+    return vals.join(',');
+  }
 
-  <!-- SCRIPT -->
-  <script>
-    function estimateTokens(text) {
-      if (!text) return 0;
-      return Math.ceil(text.split(/\s+/).length * 1.3);
+  function escapeValue(v) {
+    if (v === null) return 'null';
+    if (typeof v === 'string') {
+      // remove newlines and protect commas by wrapping in quotes if necessary
+      if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+        return `"${v.replace(/"/g,'\\"')}"`;
+      }
+      return v;
+    }
+    return String(v);
+  }
+
+  /*************** Conversion: TOON -> JSON (limited parser compatible with converter) ***************/
+  function toonToJson(text) {
+    // We only support parsing the TOON variants produced by jsonToToon above:
+    // - compact table: name[n]{fields}:\nrows
+    // - name(... parts ...) style for nested objects
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+
+    // Detect compact table
+    const tableHeader = lines[0].match(/^([a-zA-Z0-9_]+)\[(\d+)\]\{([^}]+)\}[:]?$/);
+    if (tableHeader) {
+      const name = tableHeader[1];
+      const count = parseInt(tableHeader[2]);
+      const fields = tableHeader[3].split(',').map(s => s.trim());
+      const rows = lines.slice(1, 1+count).map(r => splitCsvRow(r));
+      const arr = rows.map(row => {
+        const obj = {};
+        fields.forEach((f, i) => obj[f] = parseValue(row[i]));
+        return obj;
+      });
+      const out = {};
+      out[name] = arr;
+      return out;
     }
 
-    function convertToTOON(jsonStr) {
-      try {
-        const obj = JSON.parse(jsonStr);
+    // Fallback: naive parsing for name(...) blocks produced by jsonToToon
+    // This parser is intentionally simple and only supports the constructs we generate.
+    try {
+      // Convert toon-style to a pseudo-JSON by heuristics:
+      // - Replace name( ... ) with "name": { ... } and name[...] blocks with arrays
+      let s = text;
 
-        if (!obj.products || !Array.isArray(obj.products)) {
-          return "Invalid format: expected { products: [...] }";
+      // Convert table-like blocks (lines with header and rows) into JSON arrays
+      // Already handled earlier; otherwise attempt to replace parentheses groups
+      // Replace identifiers followed by '(' ... ')' with "id": { ... }
+      // We'll do a simple recursive replacement using position scanning.
+      const parsed = parseToonRecursive(s);
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Very small recursive parser for our generated TOON subset
+  function parseToonRecursive(s, idx = 0) {
+    // remove comments and trim
+    while (idx < s.length && /\s/.test(s[idx])) idx++;
+    // Expect identifier
+    const idMatch = /^[a-zA-Z0-9_]+/.exec(s.slice(idx));
+    if (!idMatch) throw new Error("Invalid TOON");
+    const id = idMatch[0];
+    idx += id.length;
+    while (idx < s.length && /\s/.test(s[idx])) idx++;
+
+    if (s[idx] === '(') {
+      // parse inside parentheses
+      idx++; // skip '('
+      const content = [];
+      let current = '';
+      let depth = 0;
+      while (idx < s.length) {
+        const ch = s[idx];
+        if (ch === '(') { depth++; current += ch; idx++; continue; }
+        if (ch === ')') {
+          if (depth === 0) {
+            if (current.trim()) content.push(current.trim());
+            idx++; break;
+          } else { depth--; current += ch; idx++; continue; }
         }
+        if (ch === ',' && depth === 0) {
+          content.push(current.trim());
+          current = '';
+          idx++; continue;
+        }
+        current += ch;
+        idx++;
+      }
+      const obj = {};
+      for (const part of content) {
+        // part can be like key(value) or key[... ] or raw primitive
+        const m = /^([a-zA-Z0-9_]+)\s*(\(|\[)/.exec(part);
+        if (m) {
+          const key = m[1];
+          if (part.includes(']{') || part.includes(']{') ) {
+            // not expected here
+            obj[key] = part;
+          } else if (part.includes('[')) {
+            // array block -> attempt to parse naive
+            obj[key] = parseArrayBlock(part);
+          } else {
+            // nested name(...) -> call parseToonRecursive
+            obj[key] = parseToonBlock(part);
+          }
+        } else {
+          // primitive, skip
+        }
+      }
+      const wrapper = {};
+      wrapper[id] = obj;
+      return wrapper;
+    } else if (s[idx] === '[') {
+      // identifier followed by [ ... ] array block
+      // Not fully implemented here — return simple structure placeholder
+      const arr = [];
+      return { [id]: arr };
+    } else {
+      throw new Error("Unsupported TOON construct");
+    }
+  }
 
-        const keys = Object.keys(obj.products[0]);
-        let toon = `products[${obj.products.length}]{${keys.join(",")}}:\n`;
+  function parseToonBlock(text) {
+    // text like key(sub1(...),sub2(...))
+    // We'll attempt to find the leading name and then parse inner as mini-block
+    const m = /^([a-zA-Z0-9_]+)\s*\(([\s\S]*)\)$/.exec(text.trim());
+    if (!m) return null;
+    const key = m[1];
+    const inner = m[2].trim();
+    // split top-level commas
+    const parts = [];
+    let cur = '';
+    let depth = 0;
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '(') { depth++; cur += ch; continue; }
+      if (ch === ')') { depth--; cur += ch; continue; }
+      if (ch === ',' && depth === 0) { parts.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    if (cur.trim()) parts.push(cur.trim());
+    const out = {};
+    parts.forEach(p => {
+      const mm = /^([a-zA-Z0-9_]+)\s*(\(.+|\[.+|\:.+|$)/.exec(p);
+      if (!mm) return;
+      const k = mm[1];
+      if (p.includes('(')) {
+        out[k] = parseToonBlock(p);
+      } else if (p.includes('[')) {
+        out[k] = parseArrayBlock(p);
+      } else if (p.includes(':')) {
+        // table-like block? fallback
+        out[k] = p;
+      } else {
+        // primitive-like: k(value)
+        const valMatch = /\(([^)]*)\)/.exec(p);
+        if (valMatch) out[k] = parseValue(valMatch[1]);
+      }
+    });
+    return out;
+  }
 
-        obj.products.forEach(item => {
-          const row = keys.map(k => item[k]).join(",");
-          toon += `  ${row}\n`;
-        });
+  function parseArrayBlock(text) {
+    // very small parser for blocks like reviews[...]
+    // find name
+    const nameM = /^([a-zA-Z0-9_]+)\s*\[(\d+)\]\{([^}]*)\}[:]?/.exec(text);
+    if (nameM) {
+      const fields = nameM[3].split(',').map(s=>s.trim());
+      const afterHeader = text.split('\n').slice(1).filter(Boolean);
+      const rows = afterHeader.map(r => splitCsvRow(r));
+      return rows.map(row => {
+        const o = {};
+        fields.forEach((f,i) => o[f] = parseValue(row[i]));
+        return o;
+      });
+    }
+    return [];
+  }
 
-        return toon.trim();
-      } catch {
-        return "Invalid JSON";
+  function splitCsvRow(row) {
+    // naive CSV split (handles quoted commas)
+    const res = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < row.length; i++) {
+      const ch = row[i];
+      if (ch === '"' && row[i-1] !== '\\') { inQuotes = !inQuotes; continue; }
+      if (ch === ',' && !inQuotes) { res.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    if (cur !== '') res.push(cur.trim());
+    return res;
+  }
+
+  function parseValue(v) {
+    if (v === undefined || v === null) return null;
+    v = String(v).trim();
+    if (v === 'null') return null;
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+    if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      return v.slice(1,-1).replace(/\\"/g, '"');
+    }
+    return v;
+  }
+
+  /*************** Main Handlers ***************/
+  function convertHandler() {
+    const text = document.getElementById('inputArea').value.trim();
+    if (!text) { alert('Paste JSON / TOON or load a sample.'); return; }
+
+    // Detect if input is JSON, CSV or TOON
+    const asJson = safeParseJSON(text);
+    if (asJson) {
+      // it's JSON
+      const toon = convertJsonToToonSmart(asJson);
+      showOutputs(toon, JSON.stringify(asJson, null, 2));
+    } else if (/^[\s\S]*[,]\n?/.test(text) && text.split('\n')[0].includes(',')) {
+      // crude CSV detect
+      const jsonFromCsv = csvToJson(text);
+      const toon = convertJsonToToonSmart(jsonFromCsv);
+      showOutputs(toon, JSON.stringify(jsonFromCsv, null, 2));
+    } else if (isTOONText(text)) {
+      // it's TOON
+      const json = toonToJson(text) || {};
+      // set outputs with parsed JSON and the toon input
+      showOutputs(text, JSON.stringify(json, null, 2));
+    } else {
+      alert('Unrecognized input. Paste valid JSON, CSV, or a TOON produced by this tool.');
+    }
+  }
+
+  function convertToTOON() {
+    const txt = document.getElementById('inputArea').value.trim();
+    const parsed = safeParseJSON(txt);
+    if (!parsed) { alert('Please paste valid JSON first.'); return; }
+    const toon = convertJsonToToonSmart(parsed);
+    showOutputs(toon, JSON.stringify(parsed, null, 2));
+  }
+
+  function convertToJSON() {
+    const txt = document.getElementById('inputArea').value.trim();
+    if (!txt) { alert('Paste TOON text here first.'); return; }
+    const parsed = toonToJson(txt);
+    if (!parsed) { alert('Failed to parse TOON input. Use TOON produced by this tool.'); return; }
+    showOutputs(txt, JSON.stringify(parsed, null, 2));
+  }
+
+  function convertJsonToToonSmart(parsed) {
+    // If top-level is a single key mapping to an array -> produce compact table
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const keys = Object.keys(parsed);
+      if (keys.length === 1 && Array.isArray(parsed[keys[0]])) {
+        return jsonToToon(parsed[keys[0]], keys[0]);
       }
     }
-
-    function calculate() {
-      const jsonInput = document.getElementById("jsonInput").value.trim();
-      if (!jsonInput) return;
-
-      const toon = convertToTOON(jsonInput);
-
-      const jsonTokens = estimateTokens(jsonInput);
-      const toonTokens = estimateTokens(toon);
-
-      const savings = jsonTokens - toonTokens;
-      const percent = ((savings / jsonTokens) * 100).toFixed(1);
-
-      document.getElementById("jsonTokens").innerText = jsonTokens;
-      document.getElementById("toonTokens").innerText = toonTokens;
-      document.getElementById("savings").innerText =
-        `${savings} tokens (${percent}% reduction)`;
-
-      document.getElementById("toonOutput").value = toon;
+    // otherwise, produce a readable toon representation
+    // try to keep top-level key name
+    if (Array.isArray(parsed)) {
+      return jsonToToon(parsed, 'root');
+    } else if (parsed && typeof parsed === 'object') {
+      const topPairs = Object.entries(parsed);
+      // if small top-level object with named property, attempt to name it
+      if (topPairs.length === 1) {
+        const name = topPairs[0][0];
+        return jsonToToon(parsed[name], name);
+      }
+      // fallback: produce named wrapper
+      return jsonToToon(parsed, 'root');
+    } else {
+      return String(parsed);
     }
-  </script>
+  }
 
+  function showOutputs(toonText, jsonText) {
+    document.getElementById('toonOut').textContent = toonText || '';
+    document.getElementById('jsonOut').textContent = jsonText || '';
+    Prism.highlightAll();
+
+    // update chart of sizes
+    const jSize = new Blob([jsonText || '']).size;
+    const tSize = new Blob([toonText || '']).size;
+    updateChart(jSize, tSize);
+  }
+
+  /*************** CSV helper ***************/
+  function csvToJson(csv) {
+    const lines = csv.split(/\r?\n/).filter(Boolean);
+    const header = lines[0].split(',').map(h => h.trim());
+    const arr = lines.slice(1).map(line => {
+      const cols = splitCsvRow(line);
+      const obj = {};
+      cols.forEach((c,i) => {
+        const key = header[i] || `col${i}`;
+        const v = parseValue(c);
+        obj[key] = v;
+      });
+      return obj;
+    });
+    return { items: arr };
+  }
+
+  /*************** Chart.js size chart ***************/
+  let chart = null;
+  function initChart() {
+    const ctx = document.getElementById('sizeChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['JSON', 'TOON'],
+        datasets: [{
+          label: 'Bytes',
+          data: [0,0],
+          backgroundColor: ['rgba(14,165,233,0.8)', 'rgba(59,130,246,0.8)']
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  function updateChart(j, t) {
+    if (!chart) initChart();
+    chart.data.datasets[0].data = [j, t];
+    chart.update();
+    const save = j > 0 ? ((1 - (t/j)) * 100).toFixed(2) : '0.00';
+    document.getElementById('sizeText').textContent = `JSON: ${j} bytes • TOON: ${t} bytes • Savings: ${save}%`;
+  }
+
+  /*************** Copy & Download ***************/
+  function copyInput() { copyText(document.getElementById('inputArea').value || ''); }
+  function copyOutput() { copyText(document.getElementById('toonOut').textContent || ''); }
+  function copyJsonOut() { copyText(document.getElementById('jsonOut').textContent || ''); }
+
+  function downloadOutput(type) {
+    let content = '';
+    let filename = 'data';
+    if (type === 'json') {
+      content = document.getElementById('jsonOut').textContent || document.getElementById('inputArea').value || '';
+      filename += '.json';
+    } else {
+      content = document.getElementById('toonOut').textContent || '';
+      filename += '.toon';
+    }
+    if (!content) { alert('Nothing to download. Convert first.'); return; }
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /*************** TOON parser wrapper used on submit ***************/
+  function toonToJsonWrapper(toonText) {
+    const json = toonToJson(toonText);
+    if (!json) throw new Error('Could not parse TOON');
+    return json;
+  }
+
+  /*************** Theme toggle ***************/
+  const themeBtn = document.getElementById('themeBtn');
+  themeBtn.addEventListener('click', () => {
+    const root = document.body;
+    const isLight = root.getAttribute('data-theme') === 'light';
+    if (isLight) {
+      root.setAttribute('data-theme', 'dark');
+      document.getElementById('prism-dark').disabled = false;
+    } else {
+      root.setAttribute('data-theme', 'light');
+      document.getElementById('prism-dark').disabled = true;
+    }
+  });
+
+  // quick helpers for initializing UI
+  (function init() {
+    loadSample('flat');
+    initChart();
+    Prism.highlightAll();
+    document.getElementById('buildInfo').textContent = 'v2 • ' + new Date().toLocaleString();
+    // wire file drag-drop
+    const inputArea = document.getElementById('inputArea');
+    ['dragenter','dragover'].forEach(ev=>{
+      inputArea.addEventListener(ev, (e)=>{ e.preventDefault(); e.stopPropagation(); inputArea.classList.add('ring'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      inputArea.addEventListener(ev, (e)=>{ e.preventDefault(); e.stopPropagation(); inputArea.classList.remove('ring'); });
+    });
+    inputArea.addEventListener('drop', (e)=> {
+      const f = e.dataTransfer.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = (ev)=> inputArea.value = ev.target.result;
+      reader.readAsText(f);
+    });
+
+    // quick convert on Ctrl+Enter inside input
+    inputArea.addEventListener('keydown', (e)=> { if (e.ctrlKey && e.key === 'Enter') convertHandler(); });
+  })();
+  </script>
 </body>
 </html>
