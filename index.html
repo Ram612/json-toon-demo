@@ -11,7 +11,36 @@
   button { padding: 10px 24px; margin-top: 10px; cursor: pointer; }
 </style>
 
-<script>
+</head>
+<body>
+
+<h1>JSON vs TOON Token Comparison Tool</h1>
+
+<div class="card">
+  <h3>JSON Input</h3>
+  <textarea id="jsonInput">{
+  "products": [
+    { "id": "301", "name": "Wireless Mouse", "price": 29.99, "category": "Electronics" },
+    { "id": "302", "name": "Mechanical Keyboard", "price": 79.99, "category": "Electronics" },
+    { "id": "303", "name": "4K Monitor", "price": 299.99, "category": "Electronics" }
+  ]
+}</textarea>
+  <button onclick="calculate()">Calculate</button>
+</div>
+
+<div class="card">
+  <h3>Results</h3>
+  <p><strong>JSON Tokens:</strong> <span id="jsonTokens">-</span></p>
+  <p><strong>TOON Tokens:</strong> <span id="toonTokens">-</span></p>
+  <p><strong>Token Savings:</strong> <span id="savings">-</span></p>
+</div>
+
+<div class="card">
+  <h3>TOON Output</h3>
+  <textarea id="toonOutput" readonly></textarea>
+</div>
+
+  <script>
 // --- SIMPLE TOKEN APPROX (browser-safe, no WASM needed) ---
 function estimateTokens(text) {
   if (!text) return 0;
@@ -63,35 +92,6 @@ function calculate() {
   document.getElementById("toonOutput").value = toon;
 }
 </script>
-
-</head>
-<body>
-
-<h1>JSON vs TOON Token Comparison Tool</h1>
-
-<div class="card">
-  <h3>JSON Input</h3>
-  <textarea id="jsonInput">{
-  "products": [
-    { "id": "301", "name": "Wireless Mouse", "price": 29.99, "category": "Electronics" },
-    { "id": "302", "name": "Mechanical Keyboard", "price": 79.99, "category": "Electronics" },
-    { "id": "303", "name": "4K Monitor", "price": 299.99, "category": "Electronics" }
-  ]
-}</textarea>
-  <button onclick="calculate()">Calculate</button>
-</div>
-
-<div class="card">
-  <h3>Results</h3>
-  <p><strong>JSON Tokens:</strong> <span id="jsonTokens">-</span></p>
-  <p><strong>TOON Tokens:</strong> <span id="toonTokens">-</span></p>
-  <p><strong>Token Savings:</strong> <span id="savings">-</span></p>
-</div>
-
-<div class="card">
-  <h3>TOON Output</h3>
-  <textarea id="toonOutput" readonly></textarea>
-</div>
 
 </body>
 </html>
